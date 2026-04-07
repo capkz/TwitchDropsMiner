@@ -206,7 +206,7 @@ class HTTPClient:
                 # Connection problems, retry with backoff
                 if backoff.steps > 1:
                     # Don't show quick retries to the user
-                    self.gui.print(_.t["error"]["no_connection"].format(seconds=round(delay)))
+                    self.gui.print(_.t["error"]["no_connection"].format(seconds=round(delay), url=url))
             finally:
                 if response is not None:
                     response.release()
