@@ -266,21 +266,21 @@ async def get_status():
     return {"accounts": mgr.get_accounts()}
 
 
+def _require_first_entry():
+    entry = _require_account_manager().get_first_account()
+    if entry is None:
+        raise HTTPException(status_code=503, detail="No accounts loaded")
+    return entry
+
+
 @app.get("/api/settings")
 async def get_settings():
-    mgr = _require_account_manager()
-    # Use the first available gui manager for settings (shared settings)
-    for entry in list(mgr._accounts.values()) + list(mgr._pending.values()):
-        return entry.gui.settings.get_settings()
-    raise HTTPException(status_code=503, detail="No accounts loaded")
+    return _require_first_entry().gui.settings.get_settings()
 
 
 @app.get("/api/languages")
 async def get_languages():
-    mgr = _require_account_manager()
-    for entry in list(mgr._accounts.values()) + list(mgr._pending.values()):
-        return entry.gui.settings.get_languages()
-    raise HTTPException(status_code=503, detail="No accounts loaded")
+    return _require_first_entry().gui.settings.get_languages()
 
 
 @app.get("/api/translations")
@@ -291,12 +291,10 @@ async def get_translations():
 
 @app.post("/api/settings")
 async def update_settings(settings: SettingsUpdate):
-    mgr = _require_account_manager()
+    entry = _require_first_entry()
     settings_dict = settings.dict(exclude_unset=True)
-    for entry in list(mgr._accounts.values()) + list(mgr._pending.values()):
-        entry.gui.settings.update_settings(settings_dict)
-        return {"success": True, "settings": entry.gui.settings.get_settings()}
-    raise HTTPException(status_code=503, detail="No accounts loaded")
+    entry.gui.settings.update_settings(settings_dict)
+    return {"success": True, "settings": entry.gui.settings.get_settings()}
 
 
 @app.post("/api/settings/verify-proxy")

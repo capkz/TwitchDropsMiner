@@ -90,6 +90,14 @@ class AccountManager:
     def get_account(self, user_id: int) -> AccountEntry | None:
         return self._accounts.get(user_id)
 
+    def get_first_account(self) -> AccountEntry | None:
+        """Return the first available account (authenticated, then pending)."""
+        for entry in self._accounts.values():
+            return entry
+        for entry in self._pending.values():
+            return entry
+        return None
+
     # ------------------------------------------------------------------
     # Persistence
     # ------------------------------------------------------------------
