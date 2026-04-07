@@ -2148,6 +2148,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!btn) return;
             const id = parseInt(btn.dataset.id);
             if (btn.classList.contains('account-view-btn')) switchActiveAccount(id);
+            else if (btn.classList.contains('account-reload-btn')) reloadAccount(id);
             else if (btn.classList.contains('account-logout-btn')) logoutAccount(id);
             else if (btn.classList.contains('account-remove-btn')) removeAccount(id);
         });
@@ -2278,6 +2279,7 @@ function renderAccounts() {
                 ${acc.user_id ? `<button class="small-btn account-view-btn" data-id="${acc.user_id}" ${isActive ? 'disabled' : ''}>
                     ${isActive ? 'Viewing' : 'View'}
                 </button>` : `<button class="small-btn account-view-btn" onclick="switchTab('main')">View Login</button>`}
+                ${acc.user_id ? `<button class="small-btn account-reload-btn" data-id="${acc.user_id}">Reload</button>` : ''}
                 ${acc.user_id ? `<button class="small-btn account-logout-btn" data-id="${acc.user_id}">Logout</button>` : ''}
                 ${acc.user_id ? `<button class="small-btn account-remove-btn danger-btn" data-id="${acc.user_id}">Remove</button>` : ''}
             </div>
@@ -2316,6 +2318,14 @@ async function removeAccount(userId) {
         renderAccounts();
     } catch (err) {
         alert('Failed to remove account: ' + err.message);
+    }
+}
+
+async function reloadAccount(userId) {
+    try {
+        await fetch(`/api/accounts/${userId}/reload`, { method: 'POST' });
+    } catch (err) {
+        alert('Failed to reload account: ' + err.message);
     }
 }
 
