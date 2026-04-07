@@ -2242,8 +2242,8 @@ function updateActiveAccountLabel() {
     if (!label) return;
     if (state.activeAccountId) {
         const acc = state.accounts[state.activeAccountId];
-        const name = acc ? (acc.username || `ID: ${state.activeAccountId}`) : `ID: ${state.activeAccountId}`;
-        label.textContent = `(${name})`;
+        const name = acc?.username || null;
+        label.textContent = name ? `👤 ${name}` : '';
     } else {
         label.textContent = '';
     }
@@ -2266,7 +2266,7 @@ function renderAccounts() {
 
         const isActive = acc.user_id === state.activeAccountId;
         const statusDot = acc.running ? '🟢' : '🔴';
-        const name = acc.username || (acc.user_id ? `#${acc.user_id}` : 'Logging in...');
+        const name = acc.username || (acc.user_id ? 'Loading...' : 'Logging in...');
         const statusText = acc.status || 'Unknown';
 
         card.innerHTML = `

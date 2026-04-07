@@ -1673,8 +1673,8 @@ header h1 {
 }
 
 .active-account-label {
-    font-size: 0.8rem;
-    font-weight: normal;
-    color: var(--text-secondary);
-    margin-left: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    margin-right: 8px;
 }
