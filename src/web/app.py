@@ -227,9 +227,8 @@ async def exit_manual_mode_account(user_id: int):
 
 @app.post("/api/oauth/confirm")
 async def confirm_oauth():
-    """Confirm OAuth code for any pending account (fires all pending login events)."""
+    """Confirm OAuth code entry. Fires all pending login events (normally just one)."""
     mgr = _require_account_manager()
-    # Fire for all pending accounts
     for entry in mgr._pending.values():
         entry.gui.login._login_event.set()
     return {"success": True}

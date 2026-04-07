@@ -68,11 +68,8 @@ class AccountManager:
 
     def __init__(self, settings: Settings):
         self.settings: Settings = settings
-        # user_id (int) -> AccountEntry for fully authenticated accounts
-        self._accounts: dict[int, AccountEntry] = {}
-        # staging_id (str) -> AccountEntry for accounts mid-login
-        self._pending: dict[str, AccountEntry] = {}
-        # Callback set by webapp so the manager can push updates to the frontend
+        self._accounts: dict[int, AccountEntry] = {}   # user_id -> entry
+        self._pending: dict[str, AccountEntry] = {}   # staging_id -> entry (mid-login)
         self._on_accounts_changed: Callable[[], Awaitable[None]] | None = None
 
     # ------------------------------------------------------------------

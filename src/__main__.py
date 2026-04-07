@@ -71,7 +71,8 @@ if __name__ == "__main__":
 
         logger.info("Starting web server on http://0.0.0.0:8080")
         web_server_task = asyncio.create_task(webapp.run_server(host="0.0.0.0", port=8080))
-        # Give the server a moment to bind so Socket.IO is ready
+        # Brief yield so uvicorn can bind its socket before we wire Socket.IO into
+        # each account's WebGUIManager — avoids "emit before server is ready" races.
         await asyncio.sleep(0.2)
 
         # Create account manager and load saved accounts
