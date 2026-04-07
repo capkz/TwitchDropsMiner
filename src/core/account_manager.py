@@ -238,6 +238,9 @@ class AccountManager:
         elif user_id in self._accounts:
             # Already promoted (existing account re-authenticated)
             entry = self._accounts[user_id]
+            if username and not entry.username:
+                entry.username = username
+                self._save_config()
             await self._notify_changed()
             return
         else:
