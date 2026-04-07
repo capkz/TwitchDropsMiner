@@ -42,9 +42,9 @@ class WebGUIManager:
     and other dynamic content.
     """
 
-    def __init__(self, twitch: Twitch):
+    def __init__(self, twitch: Twitch, account_id: int | None = None):
         self._twitch: Twitch = twitch
-        self._broadcaster = WebSocketBroadcaster()
+        self._broadcaster = WebSocketBroadcaster(account_id=account_id)
 
         # Create component managers
         self.status = StatusManager(self._broadcaster)
@@ -52,8 +52,6 @@ class WebGUIManager:
         self.output = ConsoleOutputManager(self._broadcaster)
         self.progress = CampaignProgressManager(self._broadcaster)
         self.channels = ChannelListManager(self._broadcaster, self)
-        self.inv = InventoryManager(self._broadcaster, ImageCache(self))
-        self.login = LoginFormManager(self._broadcaster, self)
         self.inv = InventoryManager(self._broadcaster, ImageCache(self))
         self.login = LoginFormManager(self._broadcaster, self)
 
@@ -80,6 +78,10 @@ class WebGUIManager:
             sio: The Socket.IO AsyncServer instance
         """
         self._broadcaster.set_socketio(sio)
+
+    def set_account_id(self, account_id: int) -> None:
+        """Update the account_id once authentication completes."""
+        self._broadcaster.set_account_id(account_id)
 
     def print(self, message: str):
         """Print message to console output.

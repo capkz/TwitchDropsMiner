@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import aiohttp
@@ -15,6 +16,8 @@ from src.utils import CHARS_HEX_LOWER, create_nonce
 
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from src.config import ClientInfo, JsonType
     from src.core.client import Twitch
     from src.web.gui_manager import LoginForm
@@ -34,10 +37,17 @@ class _AuthState:
     - Cookie persistence
     """
 
-    def __init__(self, twitch: Twitch):
+    def __init__(
+        self,
+        twitch: Twitch,
+        cookies_path: Path = COOKIES_PATH,
+        on_authenticated: "Callable[[int], Awaitable[None]] | None" = None,
+    ):
         self._twitch: Twitch = twitch
         self._lock = asyncio.Lock()
         self._logged_in = asyncio.Event()
+        self._cookies_path: Path = cookies_path
+        self._on_authenticated: "Callable[[int], Awaitable[None]] | None" = on_authenticated
         self.user_id: int
         self.device_id: str
         self.session_id: str
@@ -265,7 +275,7 @@ class _AuthState:
                 # otherwise, we need to delete the entire cookie file and clear the jar
                 logger.info("Cookie client ID mismatch")
                 jar.clear()
-                COOKIES_PATH.unlink(missing_ok=True)
+                self._cookies_path.unlink(missing_ok=True)
             else:
                 raise RuntimeError("Login verification failure (step #1)")
             self.user_id = int(validate_response["user_id"])
@@ -274,7 +284,10 @@ class _AuthState:
             login_form.update(_.t["login"]["status"]["logged_in"], self.user_id)
             # update our cookie and save it
             jar.update_cookies(cookie, client_info.CLIENT_URL)
-            jar.save(COOKIES_PATH)
+            jar.save(self._cookies_path)
+            # Notify account manager that authentication succeeded
+            if self._on_authenticated is not None:
+                await self._on_authenticated(self.user_id)
         self._logged_in.set()
 
     def invalidate(self):

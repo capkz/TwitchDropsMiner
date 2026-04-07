@@ -9,7 +9,9 @@ const state = {
     settings: {},
     currentDrop: null,
     countdownTimer: null,  // Track the active countdown timer
-    translations: {}  // Store current translations
+    translations: {},  // Store current translations
+    accounts: {},          // user_id -> account info
+    activeAccountId: null, // Currently viewed account
 };
 
 // ==================== Version Checking ====================
@@ -106,6 +108,24 @@ socket.on('disconnect', () => {
 
 socket.on('initial_state', (data) => {
     console.log('Received initial state', data);
+
+    // Set up accounts
+    if (data.accounts) {
+        data.accounts.forEach(acc => {
+            state.accounts[acc.user_id || `pending_${acc.status}`] = acc;
+        });
+        renderAccounts();
+    }
+
+    // Set active account from server hint or pick the first one
+    if (data.active_account_id) {
+        state.activeAccountId = data.active_account_id;
+    } else if (data.accounts && data.accounts.length > 0) {
+        state.activeAccountId = data.accounts[0].user_id;
+    }
+
+    updateActiveAccountLabel();
+
     if (data.status) updateStatus(data.status);
 
     // Batch update channels to prevent UI freezing
@@ -155,31 +175,87 @@ socket.on('initial_state', (data) => {
     }
 });
 
+// Helper: return true if the event's account_id matches the active account
+// (or if no account filtering is needed / no accounts yet)
+function isActiveAccount(data) {
+    if (!data || data.account_id === undefined) return true;
+    if (state.activeAccountId === null) return true;
+    return data.account_id === state.activeAccountId;
+}
+
+socket.on('accounts_update', (data) => {
+    state.accounts = {};
+    (data.accounts || []).forEach(acc => {
+        const key = acc.user_id !== null ? acc.user_id : `pending_${acc.status}`;
+        state.accounts[key] = acc;
+    });
+    renderAccounts();
+});
+
+socket.on('account_state', (data) => {
+    // Full state snapshot for a specific account (sent when switching active account)
+    if (data.account_id !== state.activeAccountId) return;
+    if (data.status) updateStatus(data.status);
+    if (data.channels) {
+        state.channels = {};
+        data.channels.forEach(ch => { state.channels[ch.id] = ch; });
+        renderChannels();
+    }
+    if (data.campaigns) {
+        state.campaigns = {};
+        data.campaigns.forEach(camp => { state.campaigns[camp.id] = camp; });
+        renderInventory();
+    }
+    if (data.console) {
+        const consoleEl = document.getElementById('console-output');
+        consoleEl.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        data.console.forEach(line => {
+            const div = document.createElement('div');
+            div.textContent = line;
+            fragment.appendChild(div);
+        });
+        consoleEl.appendChild(fragment);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+    if (data.login) updateLoginStatus(data.login);
+    if (data.manual_mode) updateManualModeUI(data.manual_mode);
+    if (data.current_drop) updateDropProgress(data.current_drop); else clearDropProgress();
+    if (data.wanted_items) renderWantedItems(data.wanted_items);
+});
+
 socket.on('status_update', (data) => {
+    if (!isActiveAccount(data)) return;
     updateStatus(data.status);
 });
 
 socket.on('console_output', (data) => {
+    if (!isActiveAccount(data)) return;
     addConsoleLine(data.message);
 });
 
 socket.on('channel_add', (data) => {
+    if (!isActiveAccount(data)) return;
     updateChannel(data);
 });
 
 socket.on('channel_update', (data) => {
+    if (!isActiveAccount(data)) return;
     updateChannel(data);
 });
 
 socket.on('channel_remove', (data) => {
+    if (!isActiveAccount(data)) return;
     removeChannel(data.id);
 });
 
-socket.on('channels_clear', () => {
+socket.on('channels_clear', (data) => {
+    if (!isActiveAccount(data)) return;
     clearChannels();
 });
 
 socket.on('channels_batch_update', (data) => {
+    if (!isActiveAccount(data)) return;
     // Replace all channels atomically to prevent flickering
     state.channels = {};
     data.channels.forEach(ch => {
@@ -189,30 +265,37 @@ socket.on('channels_batch_update', (data) => {
 });
 
 socket.on('channel_watching', (data) => {
+    if (!isActiveAccount(data)) return;
     setWatchingChannel(data.id);
 });
 
-socket.on('channel_watching_clear', () => {
+socket.on('channel_watching_clear', (data) => {
+    if (!isActiveAccount(data)) return;
     clearWatchingChannel();
 });
 
 socket.on('drop_progress', (data) => {
+    if (!isActiveAccount(data)) return;
     updateDropProgress(data);
 });
 
-socket.on('drop_progress_stop', () => {
+socket.on('drop_progress_stop', (data) => {
+    if (!isActiveAccount(data)) return;
     clearDropProgress();
 });
 
 socket.on('campaign_add', (data) => {
+    if (!isActiveAccount(data)) return;
     addCampaign(data);
 });
 
-socket.on('inventory_clear', () => {
+socket.on('inventory_clear', (data) => {
+    if (!isActiveAccount(data)) return;
     clearInventory();
 });
 
 socket.on('inventory_batch_update', (data) => {
+    if (!isActiveAccount(data)) return;
     // Replace all campaigns atomically to prevent flickering
     state.campaigns = {};
     data.campaigns.forEach(camp => {
@@ -222,22 +305,27 @@ socket.on('inventory_batch_update', (data) => {
 });
 
 socket.on('drop_update', (data) => {
+    if (!isActiveAccount(data)) return;
     updateDrop(data.campaign_id, data.drop);
 });
 
-socket.on('login_required', () => {
+socket.on('login_required', (data) => {
+    if (!isActiveAccount(data)) return;
     showLoginForm();
 });
 
 socket.on('oauth_code_required', (data) => {
+    if (!isActiveAccount(data)) return;
     showOAuthCode(data.url, data.code);
 });
 
 socket.on('login_status', (data) => {
+    if (!isActiveAccount(data)) return;
     updateLoginStatus(data);
 });
 
 socket.on('login_clear', (data) => {
+    if (!isActiveAccount(data)) return;
     if (data.login) document.getElementById('username').value = '';
     if (data.password) document.getElementById('password').value = '';
     if (data.token) document.getElementById('2fa-token').value = '';
@@ -248,6 +336,7 @@ socket.on('settings_updated', (data) => {
 });
 
 socket.on('games_available', (data) => {
+    if (!isActiveAccount(data)) return;
     state.availableGames = data.games;
 });
 
@@ -279,6 +368,7 @@ socket.on('attention_required', (data) => {
 });
 
 socket.on('manual_mode_update', (data) => {
+    if (!isActiveAccount(data)) return;
     updateManualModeUI(data);
 });
 
@@ -288,7 +378,10 @@ socket.on('language_changed', (data) => {
 });
 
 socket.on('wanted_items_update', (data) => {
-    renderWantedItems(data);
+    if (!isActiveAccount(data)) return;
+    // data may be {account_id, data: [...]} or legacy plain array
+    const items = Array.isArray(data) ? data : (data.data !== undefined ? data.data : data);
+    renderWantedItems(items);
 });
 
 // ==================== UI Update Functions ====================
@@ -2006,6 +2099,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
     }
+
+    // Account management
+    const addAccountBtn = document.getElementById('add-account-btn');
+    if (addAccountBtn) {
+        addAccountBtn.addEventListener('click', addAccount);
+    }
 });
 
 
@@ -2087,4 +2186,127 @@ function renderWantedItems(tree) {
         groupEl.appendChild(campaignListEl);
         container.appendChild(groupEl);
     });
+}
+
+// ==================== Account Management ====================
+
+function updateActiveAccountLabel() {
+    const label = document.getElementById('active-account-label');
+    if (!label) return;
+    if (state.activeAccountId) {
+        const acc = state.accounts[state.activeAccountId];
+        const name = acc ? (acc.username || `ID: ${state.activeAccountId}`) : `ID: ${state.activeAccountId}`;
+        label.textContent = `(${name})`;
+    } else {
+        label.textContent = '';
+    }
+}
+
+function renderAccounts() {
+    const container = document.getElementById('accounts-list');
+    if (!container) return;
+
+    const accounts = Object.values(state.accounts);
+    if (accounts.length === 0) {
+        container.innerHTML = '<p class="empty-message">No accounts configured yet. Click "Add Account" to get started.</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    accounts.forEach(acc => {
+        const card = document.createElement('div');
+        card.className = 'account-card' + (acc.user_id === state.activeAccountId ? ' account-card--active' : '');
+
+        const isActive = acc.user_id === state.activeAccountId;
+        const statusDot = acc.running ? '🟢' : '🔴';
+        const name = acc.username || (acc.user_id ? `User ${acc.user_id}` : 'Logging in...');
+        const statusText = acc.status || 'Unknown';
+
+        card.innerHTML = `
+            <div class="account-info">
+                <div class="account-name">${statusDot} ${name}</div>
+                <div class="account-status">${statusText}</div>
+                ${acc.user_id ? `<div class="account-id">ID: ${acc.user_id}</div>` : ''}
+            </div>
+            <div class="account-actions">
+                ${acc.user_id ? `<button class="small-btn account-view-btn" data-id="${acc.user_id}" ${isActive ? 'disabled' : ''}>
+                    ${isActive ? 'Viewing' : 'View'}
+                </button>` : ''}
+                ${acc.user_id ? `<button class="small-btn account-logout-btn" data-id="${acc.user_id}">Logout</button>` : ''}
+                ${acc.user_id ? `<button class="small-btn account-remove-btn danger-btn" data-id="${acc.user_id}">Remove</button>` : ''}
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
+
+    // Attach event listeners
+    container.querySelectorAll('.account-view-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchActiveAccount(parseInt(btn.dataset.id)));
+    });
+    container.querySelectorAll('.account-logout-btn').forEach(btn => {
+        btn.addEventListener('click', () => logoutAccount(parseInt(btn.dataset.id)));
+    });
+    container.querySelectorAll('.account-remove-btn').forEach(btn => {
+        btn.addEventListener('click', () => removeAccount(parseInt(btn.dataset.id)));
+    });
+}
+
+async function addAccount() {
+    const btn = document.getElementById('add-account-btn');
+    if (btn) btn.disabled = true;
+    try {
+        const response = await fetch('/api/accounts', { method: 'POST' });
+        if (!response.ok) throw new Error(await response.text());
+        // Switch to accounts tab to show login progress
+        switchTab('accounts');
+    } catch (err) {
+        alert('Failed to add account: ' + err.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function removeAccount(userId) {
+    if (!confirm(`Remove account ${userId}? This will delete all stored credentials.`)) return;
+    try {
+        const response = await fetch(`/api/accounts/${userId}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error(await response.text());
+        delete state.accounts[userId];
+        if (state.activeAccountId === userId) {
+            const remaining = Object.keys(state.accounts);
+            state.activeAccountId = remaining.length > 0 ? parseInt(remaining[0]) : null;
+            if (state.activeAccountId) await switchActiveAccount(state.activeAccountId);
+        }
+        renderAccounts();
+    } catch (err) {
+        alert('Failed to remove account: ' + err.message);
+    }
+}
+
+async function logoutAccount(userId) {
+    if (!confirm(`Logout from account ${userId}? You will need to re-authenticate.`)) return;
+    try {
+        const response = await fetch(`/api/accounts/${userId}/logout`, { method: 'POST' });
+        if (!response.ok) throw new Error(await response.text());
+        // The account will show login status after logout
+    } catch (err) {
+        alert('Failed to logout account: ' + err.message);
+    }
+}
+
+async function switchActiveAccount(userId) {
+    state.activeAccountId = userId;
+    updateActiveAccountLabel();
+    renderAccounts();
+
+    // Clear current UI
+    state.channels = {};
+    state.campaigns = {};
+    renderChannels();
+    renderInventory();
+    clearDropProgress();
+
+    // Request full state for this account from server
+    socket.emit('request_account_state', { user_id: userId });
 }

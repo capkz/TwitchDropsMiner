@@ -12,23 +12,28 @@ if TYPE_CHECKING:
 class WebSocketBroadcaster:
     """Manages broadcasting messages to all connected web clients via Socket.IO.
 
-    This class acts as a central hub for sending real-time updates from the application
-    to all connected browser clients through Socket.IO events.
+    Each broadcaster is associated with one account (identified by account_id).
+    Every emitted event is automatically tagged with account_id so the frontend
+    can route events to the correct account view.
     """
 
-    def __init__(self):
+    def __init__(self, account_id: int | None = None):
         self._sio: AsyncServer | None = None  # Will be set by webapp
+        self._account_id: int | None = account_id
 
     def set_socketio(self, sio: AsyncServer):
         """Set the Socket.IO server instance for broadcasting."""
         self._sio = sio
 
-    async def emit(self, event: str, data: Any):
-        """Emit an event to all connected clients.
+    def set_account_id(self, account_id: int) -> None:
+        """Update the account_id after successful authentication."""
+        self._account_id = account_id
 
-        Args:
-            event: The event name to emit
-            data: The data payload to send with the event
-        """
+    async def emit(self, event: str, data: Any) -> None:
+        """Emit an event to all connected clients, tagged with this account's id."""
         if self._sio:
-            await self._sio.emit(event, data)
+            if isinstance(data, dict):
+                tagged = {"account_id": self._account_id, **data}
+            else:
+                tagged = {"account_id": self._account_id, "data": data}
+            await self._sio.emit(event, tagged)

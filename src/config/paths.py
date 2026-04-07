@@ -49,3 +49,23 @@ LANG_PATH = PROJECT_ROOT / "lang"
 # Persistent storage paths - use DATA_DIR for Docker compatibility
 COOKIES_PATH = DATA_DIR / "cookies.jar"
 SETTINGS_PATH = DATA_DIR / "settings.json"
+
+# Multi-account storage
+ACCOUNTS_DIR = DATA_DIR / "accounts"
+ACCOUNTS_CONFIG_PATH = DATA_DIR / "accounts.json"
+
+# Ensure accounts directory exists
+if not ACCOUNTS_DIR.exists():
+    ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_account_dir(user_id: int) -> Path:
+    """Return the per-account data directory, creating it if necessary."""
+    account_dir = ACCOUNTS_DIR / str(user_id)
+    account_dir.mkdir(parents=True, exist_ok=True)
+    return account_dir
+
+
+def get_account_cookies_path(user_id: int) -> Path:
+    """Return the per-account cookies file path."""
+    return get_account_dir(user_id) / "cookies.jar"

@@ -42,6 +42,7 @@
 
         <nav class="tabs">
             <button class="tab-button active" data-tab="main">Main</button>
+            <button class="tab-button" data-tab="accounts">Accounts</button>
             <button class="tab-button" data-tab="inventory">Inventory</button>
             <button class="tab-button" data-tab="settings">Settings</button>
             <button class="tab-button" data-tab="help">Help</button>
@@ -52,7 +53,7 @@
             <div class="main-grid">
                 <!-- Login Section -->
                 <section class="panel login-panel">
-                    <h2>Login</h2>
+                    <h2>Login <span id="active-account-label" class="active-account-label"></span></h2>
                     <div id="login-status" class="login-status"></div>
                     <div id="login-form" style="display: none;">
                         <input type="text" id="username" placeholder="Username" />
@@ -109,6 +110,20 @@
                         <p class="empty-message-small">No wanted drops queued...</p>
                     </div>
                 </section>
+            </div>
+        </div>
+
+        <!-- Accounts Tab -->
+        <div id="accounts-tab" class="tab-content">
+            <div class="accounts-container">
+                <div class="accounts-header">
+                    <h2>Manage Accounts</h2>
+                    <button id="add-account-btn" class="action-button">+ Add Account</button>
+                </div>
+                <p class="help-text">All active accounts mine drops simultaneously. Select an account to view its activity in the Main tab.</p>
+                <div id="accounts-list" class="accounts-list">
+                    <p class="empty-message">No accounts configured yet. Click "Add Account" to get started.</p>
+                </div>
             </div>
         </div>
 

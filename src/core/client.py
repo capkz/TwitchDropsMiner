@@ -5,6 +5,7 @@ import logging
 from collections import OrderedDict, abc, deque
 from datetime import datetime, timedelta, timezone
 from functools import partial
+from pathlib import Path
 from time import time
 from typing import TYPE_CHECKING, Any, Final, Literal
 
@@ -13,6 +14,7 @@ import aiohttp
 from src.api import GQLClient, HTTPClient
 from src.auth import _AuthState
 from src.config import (
+    COOKIES_PATH,
     MAX_CHANNELS,
     ClientType,
     State,
@@ -38,6 +40,8 @@ from src.websocket import WebsocketPool
 
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from src.config import ClientInfo, GQLOperation, JsonType
     from src.config.settings import Settings
     from src.models.channel import Stream
@@ -51,8 +55,18 @@ gql_logger = logging.getLogger("TwitchDrops.gql")
 
 
 class Twitch:
-    def __init__(self, settings: Settings):
+    def __init__(
+        self,
+        settings: Settings,
+        account_id: int | None = None,
+        cookies_path: Path = COOKIES_PATH,
+        on_authenticated: "Callable[[int], Awaitable[None]] | None" = None,
+    ):
         self.settings: Settings = settings
+        # Per-account identity
+        self.account_id: int | None = account_id
+        self._cookies_path: Path = cookies_path
+        self._on_authenticated = on_authenticated
         # State management
         self._state: State = State.IDLE
         self._state_change = asyncio.Event()
@@ -63,7 +77,9 @@ class Twitch:
         self._mnt_triggers: deque[datetime] = deque()
         # Client type and auth
         self._client_type: ClientInfo = ClientType.ANDROID_APP
-        self._auth_state: _AuthState = _AuthState(self)
+        self._auth_state: _AuthState = _AuthState(
+            self, cookies_path=cookies_path, on_authenticated=self._handle_authenticated
+        )
         # GUI (will be set by main.py)
         self.gui: WebGUIManager = None  # type: ignore[assignment]
         # API clients (will be initialized after GUI is set)
@@ -92,9 +108,17 @@ class Twitch:
     def _ensure_api_clients(self) -> None:
         """Ensure API clients are initialized (called after GUI is set)."""
         if self._http_client is None:
-            self._http_client = HTTPClient(self.settings, self.gui, self, self._client_type)
+            self._http_client = HTTPClient(
+                self.settings, self.gui, self, self._client_type, cookies_path=self._cookies_path
+            )
         if self._gql_client is None:
             self._gql_client = GQLClient(self._http_client, self._auth_state, self._client_type)
+
+    async def _handle_authenticated(self, user_id: int) -> None:
+        """Called by _AuthState when authentication succeeds for the first time."""
+        self.account_id = user_id
+        if self._on_authenticated is not None:
+            await self._on_authenticated(user_id)
 
     async def get_session(self):
         """

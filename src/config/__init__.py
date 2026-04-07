@@ -32,11 +32,15 @@ from .constants import (
 )
 from .operations import GQL_OPERATIONS
 from .paths import (
+    ACCOUNTS_CONFIG_PATH,
+    ACCOUNTS_DIR,
     COOKIES_PATH,
     DATA_DIR,
     LANG_PATH,
     SETTINGS_PATH,
     _merge_vars,
+    get_account_cookies_path,
+    get_account_dir,
 )
 
 
@@ -70,6 +74,10 @@ __all__ = [
     "LANG_PATH",
     "COOKIES_PATH",
     "SETTINGS_PATH",
+    "ACCOUNTS_DIR",
+    "ACCOUNTS_CONFIG_PATH",
+    "get_account_dir",
+    "get_account_cookies_path",
     "_merge_vars",
     # client_info.py
     "ClientInfo",

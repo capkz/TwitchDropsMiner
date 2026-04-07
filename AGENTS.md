@@ -86,6 +86,16 @@ lang/                # Translation JSON files (19 languages)
 - Runs the main asyncio event loop
 - Handles signals (SIGINT, SIGTERM on Linux) and exit codes
 
+**src/core/account_manager.py** - Multi-account manager (`AccountManager` class):
+
+- Manages multiple `Twitch` + `WebGUIManager` pairs, one per Twitch account
+- Loads saved accounts from `data/accounts.json` at startup
+- Handles new account login via OAuth flow in a staging directory
+- Promotes staging accounts to permanent paths after successful auth
+- Supports concurrent mining across all accounts simultaneously
+- Provides `add_account()`, `remove_account()`, `logout_account()`, `shutdown()`
+- Per-account cookie storage: `data/accounts/<user_id>/cookies.jar`
+
 **src/core/client.py** - Central client (`Twitch` class):
 
 - State machine: IDLE, INVENTORY_FETCH, GAMES_UPDATE, CHANNELS_CLEANUP, CHANNELS_FETCH, CHANNEL_SWITCH, EXIT
@@ -422,10 +432,10 @@ The application uses a web-based interface accessible via browser:
 - ✅ Docker deployment - containerized for any platform
 - ✅ Remote access - access from any device on network
 - ✅ Headless operation - no display server required
+- ✅ Multi-account support - concurrent drop mining across multiple Twitch accounts
 
 **NOT supported:**
 
-- Multi-account support
 - Channel points mining
 - Mining for unlinked campaigns
 - Desktop GUI

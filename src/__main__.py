@@ -17,8 +17,7 @@ if __name__ == "__main__":
 
     from src.config import FILE_FORMATTER
     from src.config.settings import Settings
-    from src.core.client import Twitch
-    from src.exceptions import CaptchaRequired
+    from src.core.account_manager import AccountManager
     from src.i18n import _
     from src.version import __version__
 
@@ -52,7 +51,6 @@ if __name__ == "__main__":
         print(f"Settings error: {traceback.format_exc()}", file=sys.stderr)
         sys.exit(4)
 
-    # client run
     async def main():
         # set language
         if settings.language:
@@ -68,90 +66,59 @@ if __name__ == "__main__":
             f"Minimum refresh interval: {settings.minimum_refresh_interval_minutes} minutes"
         )
 
-        exit_status = 0
-        client = Twitch(settings)
-
-        # Initialize web GUI
+        # Initialize web GUI and server
         from src.web import app as webapp
-        from src.web.gui_manager import WebGUIManager
 
-        # Set up web GUI
-        client.gui = WebGUIManager(client)
-        # Set up webapp references
-        webapp.set_managers(client.gui, client)
-        # Start web server in background
         logger.info("Starting web server on http://0.0.0.0:8080")
         web_server_task = asyncio.create_task(webapp.run_server(host="0.0.0.0", port=8080))
+        # Give the server a moment to bind so Socket.IO is ready
+        await asyncio.sleep(0.2)
+
+        # Create account manager and load saved accounts
+        account_manager = AccountManager(settings)
+        webapp.set_account_manager(account_manager)
+
+        # Load saved accounts (wires Socket.IO into each WebGUIManager)
+        await account_manager.load_accounts(webapp.sio)
+
+        # If no accounts were loaded, the first account login will be started on demand
+        # via the web UI. Start any already-loaded accounts now.
+        await account_manager.start_all()
 
         loop = asyncio.get_running_loop()
         if sys.platform == "linux":
             logger.debug("Setting up signal handlers for SIGINT and SIGTERM")
-            loop.add_signal_handler(signal.SIGINT, lambda *_: client.close())
-            loop.add_signal_handler(signal.SIGTERM, lambda *_: client.close())
+            loop.add_signal_handler(signal.SIGINT, lambda *_: asyncio.create_task(_shutdown()))
+            loop.add_signal_handler(signal.SIGTERM, lambda *_: asyncio.create_task(_shutdown()))
 
-        logger.info("Starting main client run loop")
+        async def _shutdown():
+            logger.info("Shutdown requested")
+            await account_manager.shutdown()
+
+        logger.info("Main loop running – waiting for accounts or shutdown")
         try:
-            await client.run()
-            logger.info("Client run completed normally")
-        except CaptchaRequired:
-            logger.error("Captcha required - cannot continue")
-            exit_status = 1
-            client.print(_.t["error"]["captcha"])
-        except Exception:
-            logger.exception("Fatal error encountered during client run")
-            exit_status = 1
-            client.print("Fatal error encountered:\n")
-            client.print(traceback.format_exc())
+            # Keep running until cancelled or all accounts exit
+            await web_server_task
+        except asyncio.CancelledError:
+            pass
         finally:
             logger.info("=== Starting shutdown sequence ===")
             if sys.platform == "linux":
-                logger.debug("Removing signal handlers (Linux)")
                 loop.remove_signal_handler(signal.SIGINT)
                 loop.remove_signal_handler(signal.SIGTERM)
-            logger.info("Notifying client of exit")
-            client.print(_.t["gui"]["status"]["exiting"])
-            # Shutdown web server
+            await account_manager.shutdown()
             if web_server_task and not web_server_task.done():
                 logger.info("Shutting down web server")
-                # Trigger graceful shutdown and wait for it to finish
                 await webapp.shutdown_server()
-                # Wait for server to actually exit (with timeout)
                 try:
                     await asyncio.wait_for(web_server_task, timeout=5.0)
-                    logger.info("Web server task completed gracefully")
                 except asyncio.TimeoutError:
-                    logger.warning("Web server didn't exit in time, forcing cancellation")
                     web_server_task.cancel()
                     try:
                         await web_server_task
                     except asyncio.CancelledError:
-                        logger.info("Web server task force-cancelled")
-                except Exception as e:
-                    logger.error(f"Error while shutting down web server: {e}")
-            else:
-                logger.debug(
-                    f"Web server task status: task={web_server_task is not None}, done={web_server_task.done() if web_server_task else 'N/A'}"
-                )
-            logger.info("Shutting down Twitch client")
-            await client.shutdown()
-            logger.info("Twitch client shutdown completed")
-        logger.info(f"Shutdown complete - exit_status={exit_status}")
-        if exit_status != 0:
-            logger.warning("Application terminated with error - showing error state")
-            # Application terminated with error
-            client.print(_.t["status"]["terminated"])
-            client.gui.status.update(_.t["gui"]["status"]["terminated"])
-            # notify the user about the closure
-            client.gui.grab_attention(sound=True)
-            # Web GUI doesn't need to wait - browser clients can stay connected
-            logger.info("Web GUI - no need to wait for user to close browser")
-        else:
-            logger.info("Normal shutdown - proceeding")
-        # save the application state
-        logger.info("Saving application state")
-        settings.save()
-        logger.info("Application state saved")
-        logger.info(f"=== Exiting with status code: {exit_status} ===")
-        sys.exit(exit_status)
+                        pass
+            settings.save()
+            logger.info("=== Shutdown complete ===")
 
     asyncio.run(main())

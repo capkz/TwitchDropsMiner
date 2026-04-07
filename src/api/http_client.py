@@ -18,6 +18,7 @@ from yarl import URL
 
 from src.config import COOKIES_PATH
 from src.exceptions import ExitRequest, RequestInvalid
+from pathlib import Path
 from src.i18n import _
 from src.utils import ExponentialBackoff
 
@@ -49,6 +50,7 @@ class HTTPClient:
         gui: WebGUIManager,
         twitch: Twitch,
         client_type: ClientInfo,
+        cookies_path: Path = COOKIES_PATH,
     ):
         """
         Initialize the HTTP client.
@@ -69,6 +71,7 @@ class HTTPClient:
         self._twitch = twitch
         self._client_type = client_type
         self._session: aiohttp.ClientSession | None = None
+        self._cookies_path: Path = cookies_path
 
     async def get_session(self) -> aiohttp.ClientSession:
         """
@@ -92,8 +95,8 @@ class HTTPClient:
         # Load cookies
         cookie_jar = aiohttp.CookieJar()
         try:
-            if COOKIES_PATH.exists():
-                cookie_jar.load(COOKIES_PATH)
+            if self._cookies_path.exists():
+                cookie_jar.load(self._cookies_path)
         except Exception:
             # If loading cookies fails, clear the jar and continue
             cookie_jar.clear()
@@ -228,6 +231,6 @@ class HTTPClient:
                 if not cookie:
                     del cookie_jar._cookies[cookie_key]
 
-            cookie_jar.save(COOKIES_PATH)
+            cookie_jar.save(self._cookies_path)
             await self._session.close()
             self._session = None
