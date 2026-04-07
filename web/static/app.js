@@ -12,6 +12,7 @@ const state = {
     translations: {},  // Store current translations
     accounts: {},          // user_id -> account info
     activeAccountId: null, // Currently viewed account
+    pendingLogin: null,    // null | 'form' | {url, code} — pending login state for new accounts
 };
 
 // ==================== Version Checking ====================
@@ -319,11 +320,13 @@ socket.on('drop_update', (data) => {
 
 socket.on('login_required', (data) => {
     if (!isActiveOrPending(data)) return;
+    state.pendingLogin = 'form';
     showLoginForm();
 });
 
 socket.on('oauth_code_required', (data) => {
     if (!isActiveOrPending(data)) return;
+    state.pendingLogin = { url: data.url, code: data.code };
     showOAuthCode(data.url, data.code);
 });
 
@@ -1125,6 +1128,7 @@ function updateLoginStatus(data) {
         statusEl.textContent = `${data.status} (${userIdLabel} ${data.user_id})`;
         statusEl.removeAttribute('translation-key');
         statusEl.style.color = 'var(--success-color)';
+        state.pendingLogin = null;
         document.getElementById('login-form').style.display = 'none';
         document.getElementById('oauth-code-display').style.display = 'none';
     } else {
@@ -2000,6 +2004,15 @@ function switchTab(tabName) {
     // Show selected tab
     document.getElementById(`${tabName}-tab`).classList.add('active');
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+    // If switching to main and a login is pending, restore the login UI
+    if (tabName === 'main' && state.pendingLogin) {
+        if (state.pendingLogin === 'form') {
+            showLoginForm();
+        } else {
+            showOAuthCode(state.pendingLogin.url, state.pendingLogin.code);
+        }
+    }
 }
 
 // ==================== Event Listeners ====================
