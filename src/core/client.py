@@ -118,7 +118,8 @@ class Twitch:
         """Called by _AuthState when authentication succeeds for the first time."""
         self.account_id = user_id
         if self._on_authenticated is not None:
-            await self._on_authenticated(user_id)
+            login = getattr(self._auth_state, "login", "")
+            await self._on_authenticated(user_id, login)
 
     async def get_session(self):
         """

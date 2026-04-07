@@ -118,8 +118,11 @@ socket.on('initial_state', (data) => {
         renderAccounts();
     }
 
-    // Set active account from server hint or pick the first one
-    if (data.active_account_id) {
+    // Restore active account: prefer localStorage, then server hint, then first account
+    const savedAccountId = parseInt(localStorage.getItem('activeAccountId'));
+    if (savedAccountId && data.accounts && data.accounts.some(a => a.user_id === savedAccountId)) {
+        state.activeAccountId = savedAccountId;
+    } else if (data.active_account_id) {
         state.activeAccountId = data.active_account_id;
     } else if (data.accounts && data.accounts.length > 0) {
         state.activeAccountId = data.accounts[0].user_id;
@@ -2319,6 +2322,7 @@ async function logoutAccount(userId) {
 
 async function switchActiveAccount(userId) {
     state.activeAccountId = userId;
+    localStorage.setItem('activeAccountId', userId);
     updateActiveAccountLabel();
     renderAccounts();
 

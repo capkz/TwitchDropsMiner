@@ -225,12 +225,12 @@ class AccountManager:
     def _make_on_authenticated(self, staging_id: str | None):
         """Return the on_authenticated callback for a given staging slot."""
 
-        async def _on_authenticated(user_id: int) -> None:
-            await self._promote(staging_id, user_id)
+        async def _on_authenticated(user_id: int, username: str = "") -> None:
+            await self._promote(staging_id, user_id, username)
 
         return _on_authenticated
 
-    async def _promote(self, staging_id: str | None, user_id: int) -> None:
+    async def _promote(self, staging_id: str | None, user_id: int, username: str = "") -> None:
         """Move a staging account to a full account after successful login."""
         # Find the entry
         if staging_id and staging_id in self._pending:
@@ -261,6 +261,8 @@ class AccountManager:
                 entry.client._http_client._cookies_path = final_cookies
 
         entry.user_id = user_id
+        if username:
+            entry.username = username
 
         # Update account_id on the GUI broadcaster so events carry the right id
         entry.gui.set_account_id(user_id)
@@ -268,7 +270,7 @@ class AccountManager:
         self._accounts[user_id] = entry
         self._save_config()
         await self._notify_changed()
-        logger.info(f"Account promoted: user_id={user_id}")
+        logger.info(f"Account promoted: user_id={user_id}, username={username}")
 
     async def _run_account(self, entry: AccountEntry, staging_id: str | None = None) -> None:
         """Run a single account's main loop, handling errors."""

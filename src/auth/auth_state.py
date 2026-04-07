@@ -49,6 +49,7 @@ class _AuthState:
         self._cookies_path: Path = cookies_path
         self._on_authenticated: "Callable[[int], Awaitable[None]] | None" = on_authenticated
         self.user_id: int
+        self.login: str
         self.device_id: str
         self.session_id: str
         self.access_token: str
@@ -279,8 +280,9 @@ class _AuthState:
             else:
                 raise RuntimeError("Login verification failure (step #1)")
             self.user_id = int(validate_response["user_id"])
+            self.login = validate_response.get("login", "")
             cookie["persistent"] = str(self.user_id)
-            logger.info(f"Login successful, user ID: {self.user_id}")
+            logger.info(f"Login successful, user ID: {self.user_id}, login: {self.login}")
             login_form.update(_.t["login"]["status"]["logged_in"], self.user_id)
             # update our cookie and save it
             jar.update_cookies(cookie, client_info.CLIENT_URL)
