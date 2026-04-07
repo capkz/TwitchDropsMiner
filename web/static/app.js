@@ -2253,14 +2253,13 @@ function renderAccounts() {
 
         const isActive = acc.user_id === state.activeAccountId;
         const statusDot = acc.running ? '🟢' : '🔴';
-        const name = acc.username || (acc.user_id ? `User ${acc.user_id}` : 'Logging in...');
+        const name = acc.username || (acc.user_id ? `#${acc.user_id}` : 'Logging in...');
         const statusText = acc.status || 'Unknown';
 
         card.innerHTML = `
             <div class="account-info">
                 <div class="account-name">${statusDot} ${name}</div>
                 <div class="account-status">${statusText}</div>
-                ${acc.user_id ? `<div class="account-id">ID: ${acc.user_id}</div>` : ''}
             </div>
             <div class="account-actions">
                 ${acc.user_id ? `<button class="small-btn account-view-btn" data-id="${acc.user_id}" ${isActive ? 'disabled' : ''}>
