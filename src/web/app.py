@@ -451,6 +451,7 @@ async def request_account_state(sid, data):
             "manual_mode": entry.client.get_manual_mode_info(),
             "current_drop": entry.gui.progress.get_current_drop(),
             "wanted_items": entry.gui.get_wanted_game_tree(),
+            "settings": entry.gui.settings.get_settings(),
         },
         room=sid,
     )

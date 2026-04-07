@@ -239,6 +239,7 @@ socket.on('account_state', (data) => {
         consoleEl.appendChild(fragment);
         consoleEl.scrollTop = consoleEl.scrollHeight;
     }
+    if (data.settings) updateSettingsUI(data.settings);
     if (data.login) updateLoginStatus(data.login);
     if (data.manual_mode) updateManualModeUI(data.manual_mode);
     if (data.current_drop) updateDropProgress(data.current_drop); else clearDropProgress();
