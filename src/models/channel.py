@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any, SupportsInt, cast
 import aiohttp
 from yarl import URL
 
+from datetime import datetime, timedelta, timezone
+
 from src.config.constants import CALL, ONLINE_DELAY, GQLOperation, JsonType, URLType
 from src.config.operations import GQL_OPERATIONS
 from src.exceptions import MinerException, RequestException
@@ -477,8 +479,11 @@ class Channel:
         if self._spade_url is None:
             self._spade_url = await self.get_spade_url()
         try:
+            # Give up retrying after the watch interval so we don't block the loop
+            invalidate_after = datetime.now(timezone.utc) + timedelta(seconds=30)
             async with self._twitch.request(
-                "POST", self._spade_url, data=self._stream._spade_payload
+                "POST", self._spade_url, data=self._stream._spade_payload,
+                invalidate_after=invalidate_after,
             ) as response:
                 return response.status == 204
         except RequestException:
