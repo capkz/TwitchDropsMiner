@@ -183,6 +183,14 @@ function isActiveAccount(data) {
     return data.account_id === state.activeAccountId;
 }
 
+// Allow events from pending accounts (account_id === null) through unconditionally,
+// since there's only ever one pending login at a time.
+function isActiveOrPending(data) {
+    if (!data || data.account_id === undefined) return true;
+    if (data.account_id === null) return true;
+    return data.account_id === state.activeAccountId;
+}
+
 socket.on('accounts_update', (data) => {
     state.accounts = {};
     (data.accounts || []).forEach(acc => {
@@ -310,22 +318,22 @@ socket.on('drop_update', (data) => {
 });
 
 socket.on('login_required', (data) => {
-    if (!isActiveAccount(data)) return;
+    if (!isActiveOrPending(data)) return;
     showLoginForm();
 });
 
 socket.on('oauth_code_required', (data) => {
-    if (!isActiveAccount(data)) return;
+    if (!isActiveOrPending(data)) return;
     showOAuthCode(data.url, data.code);
 });
 
 socket.on('login_status', (data) => {
-    if (!isActiveAccount(data)) return;
+    if (!isActiveOrPending(data)) return;
     updateLoginStatus(data);
 });
 
 socket.on('login_clear', (data) => {
-    if (!isActiveAccount(data)) return;
+    if (!isActiveOrPending(data)) return;
     if (data.login) document.getElementById('username').value = '';
     if (data.password) document.getElementById('password').value = '';
     if (data.token) document.getElementById('2fa-token').value = '';
@@ -2244,7 +2252,7 @@ function renderAccounts() {
             <div class="account-actions">
                 ${acc.user_id ? `<button class="small-btn account-view-btn" data-id="${acc.user_id}" ${isActive ? 'disabled' : ''}>
                     ${isActive ? 'Viewing' : 'View'}
-                </button>` : ''}
+                </button>` : `<button class="small-btn account-view-btn" onclick="switchTab('main')">View Login</button>`}
                 ${acc.user_id ? `<button class="small-btn account-logout-btn" data-id="${acc.user_id}">Logout</button>` : ''}
                 ${acc.user_id ? `<button class="small-btn account-remove-btn danger-btn" data-id="${acc.user_id}">Remove</button>` : ''}
             </div>
@@ -2260,8 +2268,8 @@ async function addAccount() {
     try {
         const response = await fetch('/api/accounts', { method: 'POST' });
         if (!response.ok) throw new Error(await response.text());
-        // Switch to accounts tab to show login progress
-        switchTab('accounts');
+        // Switch to main tab where the login form is shown
+        switchTab('main');
     } catch (err) {
         alert('Failed to add account: ' + err.message);
     } finally {
