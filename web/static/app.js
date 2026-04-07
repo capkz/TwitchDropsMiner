@@ -129,6 +129,9 @@ socket.on('initial_state', (data) => {
 
     updateActiveAccountLabel();
 
+    // Settings are shared across accounts — always apply them.
+    if (data.settings) updateSettingsUI(data.settings);
+
     // Server always sends data for its primary account. If that's not the one
     // we want to view, request the correct account's state and skip applying
     // the wrong data.
@@ -171,7 +174,6 @@ socket.on('initial_state', (data) => {
         }
     }
 
-    if (data.settings) updateSettingsUI(data.settings);
     if (data.login) updateLoginStatus(data.login);
     if (data.manual_mode) updateManualModeUI(data.manual_mode);
     // Restore current drop progress if it exists
