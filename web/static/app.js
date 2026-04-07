@@ -1458,7 +1458,7 @@ async function selectChannel(channelId) {
         const response = await fetch('/api/channels/select', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ channel_id: channelId })
+            body: JSON.stringify({ channel_id: channelId, account_id: state.activeAccountId })
         });
 
         if (!response.ok) {
