@@ -120,15 +120,22 @@ socket.on('initial_state', (data) => {
 
     // Restore active account: prefer localStorage, then server hint, then first account
     const savedAccountId = parseInt(localStorage.getItem('activeAccountId'));
+    const serverAccountId = data.active_account_id || (data.accounts && data.accounts.length > 0 ? data.accounts[0].user_id : null);
     if (savedAccountId && data.accounts && data.accounts.some(a => a.user_id === savedAccountId)) {
         state.activeAccountId = savedAccountId;
-    } else if (data.active_account_id) {
-        state.activeAccountId = data.active_account_id;
-    } else if (data.accounts && data.accounts.length > 0) {
-        state.activeAccountId = data.accounts[0].user_id;
+    } else if (serverAccountId) {
+        state.activeAccountId = serverAccountId;
     }
 
     updateActiveAccountLabel();
+
+    // Server always sends data for its primary account. If that's not the one
+    // we want to view, request the correct account's state and skip applying
+    // the wrong data.
+    if (state.activeAccountId && state.activeAccountId !== serverAccountId) {
+        socket.emit('request_account_state', { user_id: state.activeAccountId });
+        return;
+    }
 
     if (data.status) updateStatus(data.status);
 
