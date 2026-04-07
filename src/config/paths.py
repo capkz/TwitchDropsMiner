@@ -60,10 +60,8 @@ if not ACCOUNTS_DIR.exists():
 
 
 def get_account_dir(user_id: int) -> Path:
-    """Return the per-account data directory, creating it if necessary."""
-    account_dir = ACCOUNTS_DIR / str(user_id)
-    account_dir.mkdir(parents=True, exist_ok=True)
-    return account_dir
+    """Return the per-account data directory path."""
+    return ACCOUNTS_DIR / str(user_id)
 
 
 def get_account_cookies_path(user_id: int) -> Path:

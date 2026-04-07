@@ -2105,6 +2105,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addAccountBtn) {
         addAccountBtn.addEventListener('click', addAccount);
     }
+
+    // Delegated listeners for account cards (avoids re-binding on every render)
+    const accountsList = document.getElementById('accounts-list');
+    if (accountsList) {
+        accountsList.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-id]');
+            if (!btn) return;
+            const id = parseInt(btn.dataset.id);
+            if (btn.classList.contains('account-view-btn')) switchActiveAccount(id);
+            else if (btn.classList.contains('account-logout-btn')) logoutAccount(id);
+            else if (btn.classList.contains('account-remove-btn')) removeAccount(id);
+        });
+    }
 });
 
 
@@ -2238,17 +2251,6 @@ function renderAccounts() {
         `;
 
         container.appendChild(card);
-    });
-
-    // Attach event listeners
-    container.querySelectorAll('.account-view-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchActiveAccount(parseInt(btn.dataset.id)));
-    });
-    container.querySelectorAll('.account-logout-btn').forEach(btn => {
-        btn.addEventListener('click', () => logoutAccount(parseInt(btn.dataset.id)));
-    });
-    container.querySelectorAll('.account-remove-btn').forEach(btn => {
-        btn.addEventListener('click', () => removeAccount(parseInt(btn.dataset.id)));
     });
 }
 

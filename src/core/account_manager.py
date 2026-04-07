@@ -247,6 +247,7 @@ class AccountManager:
         # Move staging directory to final per-account directory
         if entry.staging_dir is not None:
             final_dir = get_account_dir(user_id)
+            final_dir.mkdir(parents=True, exist_ok=True)
             final_cookies = final_dir / "cookies.jar"
             staging_cookies = entry.staging_dir / "cookies.jar"
             if staging_cookies.exists():
