@@ -69,7 +69,7 @@ class InventoryService:
         response_list_raw = await self._twitch.gql_request(
             [
                 GQL_OPERATIONS["CampaignDetails"].with_variables(
-                    {"channelLogin": str(auth_state.user_id), "dropID": cid}
+                    {"channelLogin": auth_state.login, "dropID": cid}
                 )
                 for cid in campaign_ids
             ]
